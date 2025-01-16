@@ -36,8 +36,14 @@ const contacts = ref<User[]>([
 ])
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-const totalItems = computed(() => { return contacts.value.length});
+const totalItems = ref(0);
+const skip = ref(itemsPerPage.value * currentPage.value - itemsPerPage.value);
 const totalPages = ref(Math.ceil(totalItems.value / itemsPerPage.value));
+const paginationInfo = computed(() => {
+  const start = skip.value + 1;
+  const end = Math.min(skip.value + itemsPerPage.value, totalItems.value);
+  return `Mostrando ${start} - ${end} de ${totalItems.value} itens`;
+});
 
 // Action methods
 const contactChat = (id: number) => {
@@ -56,14 +62,17 @@ const deleteContact = (id: number) => {
 // }
 const changePage = (page: number) => {
   currentPage.value = page
+  skip.value = itemsPerPage.value * currentPage.value - itemsPerPage.value;
+  console.log(skip.value);
+  getContacts();
 }
 const getContacts = async () => {
   const tokenService = useTokenService()
   const token = tokenService.getToken() || authStore.user?.accessToken;
   const config = useRuntimeConfig();
-
+  console.log(skip.value, itemsPerPage.value);
   try {
-    const data = await $fetch<User[]>('/users', {
+    const data = await $fetch<User[]>(`/users?limit=${itemsPerPage.value}&skip=${skip.value}`, {
       baseURL: config.public.apiBase,
       method: 'GET',
       headers: {
@@ -73,6 +82,8 @@ const getContacts = async () => {
     })
 
     contacts.value = data.users;
+    totalItems.value = data.total;
+    totalPages.value = Math.ceil(totalItems.value / itemsPerPage.value);
     return data
   } catch (error: any) {
     errorMessage.value = error.message || 'Erro ao fazer login'
@@ -81,6 +92,11 @@ const getContacts = async () => {
     loading.value = false
   }
 }
+
+watch(itemsPerPage, (newVal, oldVal) => {
+  itemsPerPage.value = newVal;
+  getContacts();
+});
 
 onMounted(async () => {
   await getContacts();
@@ -207,7 +223,7 @@ onMounted(async () => {
       <div class="flex flex-wrap items-center justify-between py-4 px-4">
         <div class="flex items-center space-x-2">
           <span class="text-gray-600 dark:text-gray-400">
-            Mostrando {{ itemsPerPage }} de {{ totalItems }} itens
+            {{ paginationInfo }}
           </span>
         </div>
         
@@ -247,8 +263,10 @@ onMounted(async () => {
             v-model="itemsPerPage"
             class="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
           >
-            <option selected value="5">5</option> 
-            <option value="10">10</option>
+            <option selected value="10">10</option> 
+            <option value="20">20</option>
+            <option value="50">50</option> 
+            <option value="300">300</option>
           </select>
         </div>
       </div>
