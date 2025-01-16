@@ -5,19 +5,16 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
-
   postcss: {
     plugins: {
       tailwindcss: {},
       autoprefixer: {},
     },
   },
-
   typescript: {
   //  typeCheck: false, //To enable type-checking at build or development time
    // strict: true, // If you are currently converting your codebase to TypeScript, you may want to temporarily disable strict checks
   },
-
   hooks: {
     'pages:extend'(pages: NuxtPage[]) {
       const publicRoutes = [''];
@@ -46,7 +43,6 @@ export default defineNuxtConfig({
       setMeta(pages)
     },
   },
-
   runtimeConfig: {
     // The private keys which are only available within server-side
     apiSecret: '123',
@@ -54,5 +50,9 @@ export default defineNuxtConfig({
     public: {
       apiBase: 'https://dummyjson.com'
     }
-  }
+  },
+  routeRules: {
+    // Admin dashboard renders only on client-side
+    '/dashboard/**': { ssr: false },
+  },
 })

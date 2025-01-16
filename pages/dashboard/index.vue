@@ -52,7 +52,6 @@ definePageMeta({
   title: 'Dashboard',
   layout: 'dashboard',
 })
-
 import { ref } from 'vue'
 
 const isSidebarOpen = ref(true)

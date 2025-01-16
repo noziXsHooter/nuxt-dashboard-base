@@ -8,7 +8,7 @@ interface User {
   lastName: string
   gender: string
   image: string
-  token: string
+  accessToken: string
 }
 
 interface AuthState {
@@ -34,26 +34,26 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    async login(username: string, password: string) {
-      this.loading = true
-      this.error = null
-      const config = useRuntimeConfig()
+  async login(username: string, password: string) {
+      const tokenService = useTokenService()
+      const authFetch = useAuthFetch()
       
+      this.loading = true
       try {
-        const data = await $fetch<User>('/auth/login', {
-          baseURL: config.public.apiBase,
+        const data = await authFetch<User>('/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: { username, password }
         })
-      
-        this.user = data
-        this.isAuthenticated = true
-        localStorage.setItem('token', data?.token ?? '')
-        
+
+        if (data && data.accessToken) {
+          this.user = data;
+          this.isAuthenticated = true;
+          tokenService.setToken(`${data.accessToken}`)
+        }
+        console.log('login', data);
         return data
       } catch (error: any) {
-        this.error = error.message || 'Erro ao fazer login'
+        this.error = error.message
         throw error
       } finally {
         this.loading = false
@@ -93,35 +93,60 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async checkAuth() {
-      const token = localStorage.getItem('token')
+      let token
+      if (import.meta.client) {
+        token = useTokenService().getToken() || this.user?.accessToken;
+      }
+
+      const config = useRuntimeConfig();
+    
+      try {
+        const data = await $fetch<User>('/user/me', {
+          baseURL: config.public.apiBase,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        console.log('checkauth', data);
+        this.user = data;
+        this.isAuthenticated = true;
+        return data
+      } catch (error: any) {
+        //this.error = error.message || 'Erro ao fazer login'
+        throw error
+      } finally {
+        //this.loading = false
+      }
       if (!token) {
         this.logout()
         return
       }
 
-      try {
-        const response = await fetch('https://dummyjson.com/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+      // try {
+      //   const response = await fetch('https://dummyjson.com/auth/me', {
+      //     headers: {
+      //       'Authorization': `Bearer ${token}`
+      //     }
+      //   })
 
-        if (!response.ok) {
-          throw new Error('Sessão expirada')
-        }
+      //   if (!response.ok) {
+      //     throw new Error('Sessão expirada')
+      //   }
 
-        const data = await response.json()
-        this.user = data
-        this.isAuthenticated = true
-      } catch {
-        this.logout()
-      }
+      //   const data = await response.json()
+      //   this.user = data
+      //   this.isAuthenticated = true
+      // } catch {
+      //   this.logout()
+      // }
     },
 
     logout() {
       this.user = null
       this.isAuthenticated = false
-      localStorage.removeItem('token')
+      useTokenService().removeToken()
       navigateTo('/login')
     }
   },
